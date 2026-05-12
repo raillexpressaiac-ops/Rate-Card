@@ -15,25 +15,20 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Secret key – must be set in Railway Variables tab
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
-if not app.secret_key:
-    raise RuntimeError("FLASK_SECRET_KEY is not set in environment variables!")
+# Secret key – uses env var if set, otherwise falls back to a default
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "srps-cargo-secret-key-2026")
 
 # ────────────────────────────────────────────────
 # Database configuration – Railway compatible
 # ────────────────────────────────────────────────
-database_url = os.getenv("DATABASE_URL")
-
-if not database_url:
-    raise RuntimeError(
-        "DATABASE_URL environment variable is missing! "
-        "Make sure you linked the PostgreSQL service and added the reference in Variables."
-    )
+database_url = os.getenv("DATABASE_URL", "")
 
 # Railway sometimes uses postgres:// scheme → convert to postgresql:// (SQLAlchemy requirement)
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+if not database_url:
+    raise RuntimeError("DATABASE_URL is not set. Please link a PostgreSQL service in Railway.")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
