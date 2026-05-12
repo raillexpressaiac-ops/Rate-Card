@@ -5,11 +5,9 @@ from dotenv import load_dotenv
 import os
 from flask import send_from_directory
 
-print(os.path.exists('static/Singh_logo.png'))  # Should print True
-
-
 # Import models (db is defined here, but initialized later)
 from models import db, User, Rate, Vendor, RateCard, AccountGroup
+
 # ────────────────────────────────────────────────
 # Load environment variables (harmless even without .env on Railway)
 # ────────────────────────────────────────────────
@@ -47,6 +45,47 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize extensions
 db.init_app(app)
 migrate = Migrate(app, db)
+
+
+# ────────────────────────────────────────────────
+# AUTO TABLE CREATION + DEFAULT USER SEEDING
+# Runs at startup — creates all tables if they don't exist,
+# then seeds a default admin and customer user if none found.
+# ────────────────────────────────────────────────
+def init_db():
+    """Create all tables (if not exist) and seed default users."""
+    db.create_all()
+
+    # Seed default admin user
+    if not User.query.filter_by(username="Admin").first():
+        admin_user = User(
+            username="Admin",
+            password_hash="admin123",
+            role="admin",
+            email="admin@srpscargo.com"
+        )
+        db.session.add(admin_user)
+
+    # Seed default customer user
+    if not User.query.filter_by(username="user").first():
+        customer_user = User(
+            username="user",
+            password_hash="1234",
+            role="customer",
+            email="user@example.com"
+        )
+        db.session.add(customer_user)
+
+    db.session.commit()
+
+
+# Run init_db within the application context at startup
+with app.app_context():
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[WARNING] init_db() failed on startup: {e}. Tables will be created on first request.")
+
 
 
 # ────────────────────────────────────────────────
@@ -390,7 +429,6 @@ def logout():
     return redirect(url_for("login"))
 
 
-
 @app.route('/sw.js')
 def service_worker():
     return send_from_directory('static', 'sw.js',
@@ -403,7 +441,3 @@ def service_worker():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-
-
-
-
